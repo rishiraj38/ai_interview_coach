@@ -29,13 +29,13 @@ const SnowOverlay = () => {
     };
 
     const createSnowflakes = () => {
-      const count = Math.floor(window.innerWidth / 4); // Adjust density
+      const count = Math.floor(window.innerWidth / 15); // Adjust density
       const newSnowflakes: Snowflake[] = [];
       for (let i = 0; i < count; i++) {
         newSnowflakes.push({
           x: Math.random() * window.innerWidth,
           y: Math.random() * window.innerHeight,
-          radius: Math.random() * 3 + 1,
+          radius: Math.random() * 2 + 1,
           speed: Math.random() * 2 + 0.5,
           wind: Math.random() * 1 - 0.5,
         });

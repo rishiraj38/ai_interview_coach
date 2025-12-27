@@ -103,7 +103,7 @@ export const Sidebar = ({ user, isSnowing, toggleSnow }: SidebarProps) => {
           )}
           title={isLocked ? "Finish interview to navigate" : ""}
         >
-          <Logo size="xl" className={cn("transition-all duration-300", isCollapsed ? "w-20 h-20" : "w-24 h-24", isLocked && "opacity-50 grayscale")} />
+          <Logo size="xl" isSnowing={isSnowing} className={cn("transition-all duration-300", isCollapsed ? "w-20 h-20" : "w-24 h-24", isLocked && "opacity-50 grayscale")} />
           {!isCollapsed && (
             <h1 className={cn(
               "text-xl font-bold bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent tracking-tight whitespace-nowrap overflow-hidden",

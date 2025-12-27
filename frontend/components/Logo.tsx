@@ -2,7 +2,7 @@ import React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
-export const Logo = ({ className, size = "md" }: { className?: string; size?: "sm" | "md" | "lg" | "xl" }) => {
+export const Logo = ({ className, size = "md", isSnowing = false }: { className?: string; size?: "sm" | "md" | "lg" | "xl"; isSnowing?: boolean }) => {
   const sizeClasses = {
     sm: 40,
     md: 145,
@@ -22,6 +22,15 @@ export const Logo = ({ className, size = "md" }: { className?: string; size?: "s
         className="object-contain" 
         priority
       />
+      {isSnowing && (
+        <Image
+          src="/santa-hat.svg"
+          alt="Santa Hat"
+          width={pxSize * 0.5}
+          height={pxSize * 0.5}
+          className="absolute -top-[45%] -right-[20%] rotate-12 z-10 pointer-events-none"
+        />
+      )}
     </div>
   );
 };

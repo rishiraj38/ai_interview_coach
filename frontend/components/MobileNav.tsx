@@ -74,7 +74,7 @@ export const MobileNav = ({ user, isSnowing, toggleSnow }: MobileNavProps) => {
     <div className="md:hidden border-b border-white/5 bg-[#0a0a0f] sticky top-0 z-50">
       <div className="flex items-center justify-between p-4">
          <Link href="/" className="flex items-center gap-2">
-            <Logo size="sm" />
+            <Logo size="sm" isSnowing={isSnowing} />
             <span className="font-bold text-white tracking-tight">AeroPrep</span>
          </Link>
          <Button 
