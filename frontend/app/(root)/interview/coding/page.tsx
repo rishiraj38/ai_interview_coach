@@ -80,6 +80,51 @@ export default function CodingRoundPage() {
   const [selectedLanguage, setSelectedLanguage] = useState('javascript');
   const [isNavigating, setIsNavigating] = useState(false);
   
+  // Resizable Output State
+  const [outputHeight, setOutputHeight] = useState(300); 
+  const [isDragging, setIsDragging] = useState(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Resize Handlers
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDragging || !containerRef.current) return;
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const newHeight = containerRect.bottom - e.clientY;
+      
+      // Clamp height: Min 40px, Max 85% of container height
+      const maxHeight = containerRect.height * 0.85;
+      
+      // Use clamping instead of conditional updated to avoid "stuck" feeling
+      const clampedHeight = Math.max(40, Math.min(newHeight, maxHeight));
+      setOutputHeight(clampedHeight);
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+      document.body.style.cursor = 'default';
+    };
+
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'row-resize';
+    }
+
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+    };
+  }, [isDragging]);
+
+  const startResizing = (e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  
   // Results tracking
   const [results, setResults] = useState<any[]>([]);
 
@@ -116,6 +161,7 @@ export default function CodingRoundPage() {
      setLoading(true);
      setChallenge(null);
      setOutput(null);
+     // Reset height for new challenge if needed, or keep user preference
      setCode("// Generating personalized challenge...");
      
      try {
@@ -153,6 +199,8 @@ export default function CodingRoundPage() {
       if (!challenge || evaluating) return;
       setEvaluating(true);
       setOutput(null);
+       // Ensure output window is visible when running
+      if (outputHeight < 100) setOutputHeight(300);
       try {
           const result = await evaluateCode(code, selectedLanguage, challenge);
           setOutput(result);
@@ -317,7 +365,7 @@ export default function CodingRoundPage() {
       </div>
 
       {/* Right Panel: Editor & Output */}
-      <div className="w-full md:w-2/3 flex flex-col h-[60vh] md:h-screen">
+      <div ref={containerRef} className="w-full md:w-2/3 flex flex-col h-[60vh] md:h-screen overflow-hidden">
           {/* Toolbar */}
           <div className="bg-muted/30 border-b border-border px-4 py-2 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -366,7 +414,7 @@ export default function CodingRoundPage() {
           </div>
           
           {/* Editor */}
-          <div className="flex-1 relative">
+          <div className={`flex-1 relative min-h-0 overflow-hidden ${isDragging ? 'pointer-events-none select-none' : ''}`}>
               <Editor
                 height="100%"
                 language={selectedLanguage}
@@ -382,10 +430,21 @@ export default function CodingRoundPage() {
               />
           </div>
           
+          {/* Drag Handle */}
+          <div 
+            className="h-2 bg-border hover:bg-primary/50 cursor-row-resize flex items-center justify-center transition-colors group"
+            onMouseDown={startResizing}
+          >
+            <div className="w-12 h-1 rounded-full bg-muted-foreground/30 group-hover:bg-primary/70" />
+          </div>
+          
           {/* Output Console */}
-          <div className={`transition-all duration-300 border-t border-border bg-slate-950 p-4 overflow-y-auto ${output ? 'h-1/3' : 'h-12'}`}>
+          <div 
+            style={{ height: outputHeight }}
+            className={`transition-none border-t border-border bg-slate-950 p-4 overflow-y-auto`}
+          >
               {!output && (
-                  <div className="text-center text-xs text-muted-foreground pt-1 flex items-center justify-center gap-2">
+                  <div className="text-center text-xs text-muted-foreground pt-1 flex items-center justify-center gap-2 h-full">
                       <Keyboard className="h-4 w-4" /> <span>Write your code and click Run to test</span>
                   </div>
               )}

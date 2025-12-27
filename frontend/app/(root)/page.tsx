@@ -1,13 +1,13 @@
 "use client";
 
 import { Button } from '@/components/ui/button'
-import Image from 'next/image'
 import Link from 'next/link'
 import React, { useEffect, useState } from 'react'
 import { isAuthenticated, getUser, logout } from '@/lib/auth'
 import { getInterviewHistory } from '@/lib/api'
 import { useRouter } from 'next/navigation'
-import { Rocket, BarChart2, Palette, Server, Layers, Clock, CheckCircle } from 'lucide-react'
+import { Rocket, BarChart2, Palette, Server, Layers, Clock, CheckCircle, TrendingUp, Shield, Plane, ArrowRight } from 'lucide-react'
+import { Logo } from '@/components/Logo'
 
 interface Interview {
   id: number;
@@ -26,21 +26,30 @@ export default function HomePage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [interviews, setInterviews] = useState<Interview[]>([]);
+  const [averageScore, setAverageScore] = useState<number>(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (isAuthenticated()) {
       setUser(getUser());
-      fetchRecentInterviews();
+      fetchDashboardData();
     } else {
       setLoading(false);
     }
   }, []);
 
-  async function fetchRecentInterviews() {
+  async function fetchDashboardData() {
     try {
       const data = await getInterviewHistory();
-      setInterviews(data.slice(0, 3));
+      
+      // Calculate Average Score
+      const completedInterviews = data.filter((i: any) => i.status === 'completed' && i.feedback);
+      if (completedInterviews.length > 0) {
+        const total = completedInterviews.reduce((acc: number, curr: any) => acc + (curr.feedback?.totalScore || 0), 0);
+        setAverageScore(Math.round(total / completedInterviews.length));
+      }
+      
+      setInterviews(data);
     } catch (error) {
       console.error('Failed to fetch interviews:', error);
     } finally {
@@ -55,154 +64,151 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-6">
-      {/* Auth Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-        <h1 className="text-xl sm:text-2xl font-bold">PrepAero</h1>
-        <div className="flex items-center gap-2 sm:gap-4">
-          {user ? (
-            <>
-              <span className="text-xs sm:text-sm text-muted-foreground hidden sm:inline">Welcome, {user.name}</span>
-              <Button variant="ghost" size="sm" onClick={handleLogout} className="cursor-pointer">
-                Logout
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button asChild variant="ghost" size="sm" className="cursor-pointer">
-                <Link href="/sign-in">Sign In</Link>
-              </Button>
-              <Button asChild size="sm" className="cursor-pointer">
-                <Link href="/sign-up">Sign Up</Link>
-              </Button>
-            </>
-          )}
+    <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
+      {/* Hero / Welcome Section */}
+      <section className="relative mb-16">
+        <div className="card-cta overflow-hidden relative">
+            <div className="z-10 relative max-w-2xl">
+                <h2 className="text-4xl sm:text-5xl font-bold leading-tight mb-4 text-white">
+                    {user ? `Welcome back, ${user.name.split(' ')[0]}` : "Elevate Your Career."}
+                </h2>
+                <p className="text-lg text-light-100 mb-8 max-w-lg">
+                    {user 
+                        ? "Ready to reach new heights? Your flight plan for interview success is ready." 
+                        : "Master your technical interviews with our precision-engineered flight simulator for your career."}
+                </p>
+                
+                <div className="flex flex-wrap gap-4">
+                    <Link href={user ? "/interview/create" : "/sign-up"} className="btn-primary flex items-center gap-2">
+                        <Rocket className="h-4 w-4" /> 
+                        {user ? "Start New Session" : "Start New Mission"}
+                    </Link>
+                    {user && (
+                        <Link href="/interview/history" className="btn-secondary flex items-center gap-2">
+                            <BarChart2 className="h-4 w-4" /> Flight Logs
+                        </Link>
+                    )}
+                </div>
+            </div>
+            
+            {/* Abstract Decorative Element */}
+            <div className="absolute right-0 top-0 bottom-0 w-1/2 bg-gradient-to-l from-primary-200/10 to-transparent pointer-events-none hidden md:block"></div>
+            {/* Minimalist abstract shape instead of literal plane */}
+            <div className="absolute right-10 top-1/2 -translate-y-1/2 h-64 w-64 border-[20px] border-white/5 rounded-full hidden md:block" />
         </div>
-      </div>
-
-
-
-      {/* Hero Section */}
-      <section className="card-cta flex flex-col md:flex-row items-center gap-6 p-6 sm:p-8 lg:p-10 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border">
-        <div className="flex flex-col gap-4 sm:gap-6 flex-1 text-center md:text-left">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-tight">
-            Get Interview Ready with AI Powered Practice
-          </h2>
-          <p className="text-base sm:text-lg text-muted-foreground">
-            Practice real interview questions and get instant AI feedback
-          </p>
-          <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center md:justify-start">
-            <Button asChild className="btn-primary cursor-pointer w-full sm:w-auto">
-              <Link href="/interview/create">
-                <Rocket className="mr-2 h-4 w-4" /> Start an Interview
-              </Link>
-            </Button>
-            {user && (
-              <Button asChild variant="outline" className="cursor-pointer w-full sm:w-auto">
-                <Link href="/interview/history">
-                  <BarChart2 className="mr-2 h-4 w-4" /> View History
-                </Link>
-              </Button>
-            )}
-          </div>
-        </div>
-        <Image
-          src="/robot.png"
-          alt="robo-dude"
-          width={300}
-          height={300}
-          className="hidden md:block w-48 lg:w-72 h-auto"
-        />
       </section>
 
-      {/* Practice Quick Start */}
-      <section className="mt-8">
-        <h2 className="text-lg sm:text-xl font-bold mb-4">Practice Quick Start</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-           {['Frontend Developer', 'Full Stack Developer', 'Backend Developer'].map((role) => (
+      {user && (
+         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            {/* Average Score Card */}
+            <div className="card p-6 flex flex-col justify-between relative overflow-hidden group">
+                <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                    <TrendingUp className="h-24 w-24 text-primary-200" />
+                </div>
+                <div>
+                   <p className="text-light-400 text-sm font-medium uppercase tracking-wider mb-2">Overall Performance</p>
+                   <h3 className="text-4xl font-bold text-white mb-1">{averageScore > 0 ? averageScore : '-'}<span className="text-xl text-light-600">/100</span></h3>
+                   <p className="text-xs text-light-400">Average across {interviews.filter(i => i.status === 'completed').length} completed sessions</p>
+                </div>
+                <div className="w-full bg-dark-300 h-1.5 rounded-full mt-6 overflow-hidden">
+                    <div className="bg-primary-200 h-full rounded-full" style={{ width: `${averageScore}%` }}></div>
+                </div>
+            </div>
+
+            {/* Quick Actions / Stats */}
+            <div className="card p-6 flex flex-col justify-center gap-4">
+                 <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-success-200/20 text-success-200 flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <h4 className="text-white font-bold text-xl">{interviews.length}</h4>
+                        <p className="text-sm text-light-400">Total Sessions</p>
+                    </div>
+                 </div>
+                 <div className="flex items-center gap-4">
+                    <div className="h-12 w-12 rounded-full bg-primary-200/20 text-primary-200 flex items-center justify-center">
+                        <Clock className="h-6 w-6" />
+                    </div>
+                    <div>
+                        <h4 className="text-white font-bold text-xl">{interviews.filter(i => i.status !== 'completed').length}</h4>
+                        <p className="text-sm text-light-400">In Progress</p>
+                    </div>
+                 </div>
+            </div>
+
+            {/* Latest Activity */}
+            <div className="card p-0 overflow-hidden flex flex-col">
+                <div className="p-4 border-b border-white/5 bg-white/5 flex justify-between items-center">
+                    <h3 className="font-semibold text-white">Recent Flight Logs</h3>
+                    <Link href="/interview/history" className="text-xs text-primary-200 hover:text-white transition-colors">View All</Link>
+                </div>
+                <div className="flex-1 overflow-y-auto max-h-[200px] p-2">
+                    {interviews.length === 0 ? (
+                        <div className="h-full flex items-center justify-center text-light-600 text-sm">No recent activity</div>
+                    ) : (
+                        <div className="space-y-1">
+                            {interviews.slice(0, 3).map(i => (
+                                <Link key={i.id} href={`/interview/history/${i.id}`} className="flex items-center justify-between p-3 hover:bg-white/5 rounded-lg transition-colors group">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`h-2 w-2 rounded-full ${i.status === 'completed' ? 'bg-success-200' : 'bg-yellow-500'}`}></div>
+                                        <div>
+                                            <p className="text-sm text-white font-medium">Session #{i.id}</p>
+                                            <p className="text-xs text-light-400">{new Date(i.createdAt).toLocaleDateString()}</p>
+                                        </div>
+                                    </div>
+                                    {i.feedback && <span className="text-sm font-bold text-primary-200">{i.feedback.totalScore}%</span>}
+                                </Link>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            </div>
+         </div>
+      )}
+
+      {/* Quick Start Modules */}
+      <section>
+        <div className="flex items-center gap-2 mb-6">
+            <Shield className="h-5 w-5 text-primary-200" />
+            <h2 className="text-xl font-bold text-white">Simulation Modules</h2>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+           {[
+             { role: 'Frontend Developer', icon: Palette, desc: "React, CSS mastery, and DOM manipulation." },
+             { role: 'Backend Developer', icon: Server, desc: "API design, Database scaling, and System correctness." },
+             { role: 'Full Stack Developer', icon: Layers, desc: "End-to-end system design and integration." }
+           ].map((item) => (
              <Link 
-               key={role}
-               href={`/interview/create?role=${encodeURIComponent(role)}`}
-               className="bg-card hover:bg-muted/50 border rounded-xl p-6 transition-all cursor-pointer flex flex-col gap-2 group"
+               key={item.role}
+               href={user ? `/interview/create?role=${encodeURIComponent(item.role)}` : "/sign-up"}
+               className="card p-6 group hover:border-primary-200/50 transition-all cursor-pointer relative overflow-hidden"
              >
-               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary mb-2 group-hover:scale-110 transition-transform">
-                 {role.includes('Frontend') ? <Palette className="h-5 w-5" /> : role.includes('Backend') ? <Server className="h-5 w-5" /> : <Layers className="h-5 w-5" />}
+               <div className="absolute top-0 right-0 p-4 opacity-5 group-hover:opacity-10 transition-opacity transform group-hover:scale-110 duration-500">
+                  <item.icon className="h-32 w-32" />
                </div>
-               <h3 className="font-semibold">{role} Interview</h3>
-               <p className="text-xs text-muted-foreground">Practice typically asked questions for {role} roles.</p>
+               
+               <div className="relative z-10">
+                   <div className="w-12 h-12 rounded-xl bg-dark-300 border border-white/10 flex items-center justify-center text-primary-200 mb-4 group-hover:bg-primary-200 group-hover:text-white transition-colors">
+                     <item.icon className="h-6 w-6" />
+                   </div>
+                   <h3 className="font-bold text-lg text-white mb-2">{item.role}</h3>
+                   <p className="text-sm text-light-400 mb-4 h-10">{item.desc}</p>
+                   
+                   <div className="flex items-center text-xs font-bold text-primary-200 group-hover:text-white transition-colors">
+                      LAUNCH MODULE <ArrowRight className="ml-2 h-3 w-3 group-hover:translate-x-1 transition-transform" />
+                   </div>
+               </div>
              </Link>
            ))}
         </div>
       </section>
-
-      {/* Recent Interviews */}
-      {user && (
-        <section className="flex flex-col gap-4 sm:gap-6 mt-6 sm:mt-8">
-          <div className="flex justify-between items-center">
-            <h2 className="text-lg sm:text-xl font-bold">Recent Interviews</h2>
-            <Link href="/interview/history" className="text-primary text-sm hover:underline cursor-pointer">
-              View All →
-            </Link>
+      
+      {!user && (
+          <div className="mt-20 text-center border-t border-white/5 pt-10">
+              <p className="text-light-600 text-sm">© 2025 Aero Prep. All systems nominal.</p>
           </div>
-          
-          {loading ? (
-            <div className="text-center py-10 text-muted-foreground">Loading...</div>
-          ) : interviews.length === 0 ? (
-            <div className="text-center py-8 sm:py-10 bg-muted/30 rounded-lg">
-              <p className="text-muted-foreground text-sm sm:text-base">No interviews yet. Start your first one!</p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
-              {interviews.map((interview) => (
-                <Link 
-                  key={interview.id} 
-                  href={`/interview/history/${interview.id}`}
-                  className="bg-card border rounded-lg p-4 hover:border-primary transition-colors cursor-pointer"
-                >
-                  <div className="flex justify-between items-start mb-2">
-                    <span className={`px-2 py-1 rounded text-xs flex items-center gap-1 ${
-                      interview.status === 'completed' 
-                        ? 'bg-green-500/20 text-green-400' 
-                        : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>
-                      {interview.status === 'completed' 
-                        ? <><CheckCircle className="h-3 w-3" /> Completed</>
-                        : <><Clock className="h-3 w-3" /> In Progress</>
-                      }
-                    </span>
-                    {interview.feedback && (
-                      <span className="font-bold text-lg">
-                        {interview.feedback.totalScore}/100
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    {new Date(interview.createdAt).toLocaleDateString()}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {interview._count.questions} questions
-                  </p>
-                </Link>
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* CTA for non-logged in users */}
-      {!user && !loading && (
-        <section className="flex flex-col gap-4 sm:gap-6 mt-6 sm:mt-8 text-center py-8 sm:py-10 px-4 bg-muted/20 rounded-lg">
-          <h3 className="text-lg sm:text-xl font-semibold">Sign in to save your interview history</h3>
-          <p className="text-muted-foreground text-sm sm:text-base">Track your progress and review past interviews</p>
-          <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4">
-            <Button asChild className="cursor-pointer w-full sm:w-auto">
-              <Link href="/sign-up">Create Account</Link>
-            </Button>
-            <Button asChild variant="outline" className="cursor-pointer w-full sm:w-auto">
-              <Link href="/sign-in">Sign In</Link>
-            </Button>
-          </div>
-        </section>
       )}
     </div>
   );
