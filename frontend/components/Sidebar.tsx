@@ -161,7 +161,7 @@ export const Sidebar = ({ user, isSnowing, toggleSnow }: SidebarProps) => {
         {/* Helper Link */}
         <div className={cn("pb-2", isCollapsed ? "flex justify-center" : "px-2")}>
            <Link href="/help" className={cn("flex items-center py-3 text-sm text-gray-500 hover:text-white transition-colors", isCollapsed ? "justify-center" : "px-4")}>
-              <HelpCircle className={cn(isCollapsed ? "h-5 w-5" : "h-4 w-4 mr-3")} />
+              <HelpCircle className={cn(isCollapsed ? "h-5 w-5 ml-0.5" : "h-4 w-4 mr-3")} />
               {!isCollapsed && <span className="whitespace-nowrap">Help & Support</span>}
            </Link>
            
@@ -170,12 +170,12 @@ export const Sidebar = ({ user, isSnowing, toggleSnow }: SidebarProps) => {
              className={cn(
                "flex items-center w-full py-3 text-sm transition-colors mt-1 group/snow", 
                isCollapsed ? "justify-center" : "px-4",
-               isSnowing ? "text-blue-300" : "text-gray-500 hover:text-white"
+               isSnowing ? "text-blue-300" : "text-gray-500 hover:text-white cursor-pointer"
              )}
              title={isSnowing ? "Stop Snow" : "Let it Snow!"}
            >
               <Snowflake className={cn(
-                isCollapsed ? "h-5 w-5" : "h-4 w-4 mr-3", 
+                isCollapsed ? "h-5 w-5 mb-1" : "h-4 w-4 mr-3", 
                 isSnowing && "animate-spin-slow" 
               )} />
               {!isCollapsed && <span className="whitespace-nowrap">Let it Snow</span>}
@@ -185,7 +185,7 @@ export const Sidebar = ({ user, isSnowing, toggleSnow }: SidebarProps) => {
         {/* User Section */}
         <div className={cn("border-t border-white/5 bg-black/20 rounded-xl mt-2 overflow-hidden", isCollapsed ? "mx-1 p-2" : "m-2 p-4")}>
             <div className={cn("flex items-center mb-4 transition-all", isCollapsed ? "justify-center mb-2" : "gap-3")}>
-                <div className="h-9 w-9 rounded-full bg-gradient-to-br from-primary-200 to-primary-300 flex items-center justify-center text-white shadow-lg flex-shrink-0">
+                <div className="h-9 w-9 rounded-full bg-linear-to-br from-primary-200 to-primary-300 flex items-center justify-center text-white shadow-lg flex-shrink-0">
                     <User className="h-4 w-4" />
                 </div>
                 {!isCollapsed && (
