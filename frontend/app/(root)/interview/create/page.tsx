@@ -119,7 +119,7 @@ function CreateInterviewContent() {
       // Determine Context
       let finalResumeURL = "";
       let practiceResumeText = "";
-      let jobDescription = manualDesc || "";
+      const jobDescription = manualDesc || "";
 
       if (mode === 'upload') {
           finalResumeURL = resumeURL;
