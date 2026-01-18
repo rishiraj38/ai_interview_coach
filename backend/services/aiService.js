@@ -16,7 +16,7 @@ async function callOpenRouter(prompt, operationName = 'AI Call') {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY}`,
+      'Authorization': `Bearer ${process.env.OPENROUTER_API_KEY2}`,
       'HTTP-Referer': 'http://localhost:3000',
       'X-Title': 'AI Interview Coach'
     },
