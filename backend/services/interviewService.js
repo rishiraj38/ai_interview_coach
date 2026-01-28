@@ -1,20 +1,23 @@
 const { prisma } = require('./prismaClient');
 
-// Create a new interview with questions
-async function createInterview(userId, resumeURL, jobDescription, questions) {
+// Create a new interview with optional questions
+async function createInterview(userId, resumeURL, jobDescription, questions = []) {
   const interview = await prisma.interview.create({
     data: {
       userId,
       resumeURL,
       jobDescription,
       status: 'in_progress',
-      questions: {
-        create: questions.map((q, index) => ({
-          questionText: q.question,
-          expectedAnswer: q.answer,
-          order: index + 1
-        }))
-      }
+      // Only create questions if array is non-empty
+      ...(questions.length > 0 && {
+        questions: {
+          create: questions.map((q, index) => ({
+            questionText: q.question,
+            expectedAnswer: q.answer || q.expectedAnswer || '',
+            order: index + 1
+          }))
+        }
+      })
     },
     include: {
       questions: true
@@ -22,6 +25,42 @@ async function createInterview(userId, resumeURL, jobDescription, questions) {
   });
   
   return interview;
+}
+
+// Add a single question to an existing interview (for dynamic flow)
+async function addQuestionToInterview(interviewId, questionText, expectedAnswer, order) {
+  // Use a transaction to safely determine the next order and create the question
+  // This prevents race conditions where multiple requests might try to create questions with the same order
+  const question = await prisma.$transaction(async (tx) => {
+    // If order is provided, use it (but this is risky if caller doesn't know current state)
+    // Better practice: calculate valid next order inside transaction if 'order' isn't strictly enforced by caller
+    
+    let nextOrder = order;
+    
+    // If order is not provided or we want to be safe, auto-increment based on DB state
+    const lastQuestion = await tx.question.aggregate({
+      where: { interviewId },
+      _max: { order: true }
+    });
+    
+    const maxOrder = lastQuestion._max.order || 0;
+    
+    // If caller didn't provide order, or to be safe we overwrite it:
+    // Ideally we trust the caller if they are sure, but for safety in this specific refactor request:
+    // "compute nextOrder = (maxOrder || 0) + 1"
+    nextOrder = maxOrder + 1;
+
+    return await tx.question.create({
+      data: {
+        interviewId,
+        questionText,
+        expectedAnswer: expectedAnswer || '',
+        order: nextOrder
+      }
+    });
+  });
+  
+  return question;
 }
 
 // Save user answers to questions
@@ -152,6 +191,7 @@ async function getInterviewById(interviewId, userId) {
 
 module.exports = {
   createInterview,
+  addQuestionToInterview,
   saveAnswers,
   saveCodingResult,
   saveFeedback,
