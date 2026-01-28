@@ -5,7 +5,13 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { saveInterviewAnswers } from '@/lib/api';
 import { isAuthenticated } from '@/lib/auth';
-import { Bot, Loader2, Flag, Code2, CheckCircle, SkipForward, ArrowLeft, ArrowRight } from 'lucide-react';
+import { Bot, Loader2, Flag, Code2, CheckCircle, SkipForward, ArrowLeft, ArrowRight, Mic } from 'lucide-react';
+
+// LiveKit Imports
+import { LiveKitRoom, RoomAudioRenderer, ControlBar, useTracks, TrackLoop } from '@livekit/components-react';
+import '@livekit/components-styles';
+import { Track } from 'livekit-client';
+import { useLiveKitAuth } from '@/hooks/use-livekit';
 
 interface Question {
   question: string;
@@ -18,10 +24,18 @@ export default function InterviewSessionPage() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isStarted, setIsStarted] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
-  const [answers, setAnswers] = useState<{questionIndex: number, answer: string}[]>([]);
+  const [answers, setAnswers] = useState<{ questionIndex: number, answer: string }[]>([]);
   const [showCodingChoice, setShowCodingChoice] = useState(false);
   const [isNavigating, setIsNavigating] = useState(false);
+
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedVoice, setSelectedVoice] = useState("en-US-ChristopherNeural"); // Default to Christopher
+
+  // LiveKit Connection
+  // We use a random room name or one based on the interview ID for uniqueness in a real app
+  const roomName = "interview-session-" + (typeof window !== 'undefined' ? localStorage.getItem('interviewId') || 'demo' : 'demo');
+  const participantName = "Candidate";
+  const { token, url } = useLiveKitAuth(roomName, participantName);
 
   useEffect(() => {
     const stored = localStorage.getItem('interviewQuestions');
@@ -32,6 +46,48 @@ export default function InterviewSessionPage() {
     }
   }, []);
 
+  // Edge TTS Logic (Backend)
+  const speak = async (text: string) => {
+    try {
+      const { generateSpeech } = await import('@/lib/api');
+      const audioBlob = await generateSpeech(text, selectedVoice);
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      if ((window as any).currentAudio) {
+        (window as any).currentAudio.pause();
+      }
+
+      audio.play().catch(e => console.error("Audio playback failed:", e));
+      (window as any).currentAudio = audio;
+    } catch (err) {
+      console.error("Failed to speak:", err);
+    }
+  };
+
+  // Trigger speech when question changes
+  useEffect(() => {
+    if (isStarted && questions.length > 0) {
+      const currentQuestion = questions[currentIndex]?.question;
+      if (currentQuestion) {
+        // Small delay to ensure smooth transition
+        const timer = setTimeout(() => {
+          speak(currentQuestion);
+        }, 500);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [currentIndex, isStarted, questions]);
+
+  // Cleanup speech on unmount
+  useEffect(() => {
+    return () => {
+      if ((window as any).currentAudio) {
+        (window as any).currentAudio.pause();
+      }
+    };
+  }, []);
+
   const startInterview = () => {
     setIsStarted(true);
     setCurrentIndex(0);
@@ -39,11 +95,16 @@ export default function InterviewSessionPage() {
 
   const submitAnswer = () => {
     if (isSaving) return;
-    
+
+    // Stop speaking when user moves next
+    if ((window as any).currentAudio) {
+      (window as any).currentAudio.pause();
+    }
+
     const newAnswers = [...answers, { questionIndex: currentIndex, answer: userAnswer }];
     setAnswers(newAnswers);
     localStorage.setItem('interviewAnswers', JSON.stringify(newAnswers));
-    
+
     if (currentIndex >= questions.length - 1) {
       finishQA(newAnswers);
     } else {
@@ -52,9 +113,9 @@ export default function InterviewSessionPage() {
     }
   };
 
-  const finishQA = async (finalAnswers: {questionIndex: number, answer: string}[]) => {
+  const finishQA = async (finalAnswers: { questionIndex: number, answer: string }[]) => {
     setIsSaving(true);
-    
+
     const interviewId = localStorage.getItem('interviewId');
     if (isAuthenticated() && interviewId) {
       try {
@@ -63,7 +124,7 @@ export default function InterviewSessionPage() {
         console.error('Failed to save answers:', err);
       }
     }
-    
+
     setIsSaving(false);
     setShowCodingChoice(true);
   };
@@ -85,8 +146,8 @@ export default function InterviewSessionPage() {
 
   if (questions.length === 0) return (
     <div className="p-10 text-center flex flex-col items-center justify-center min-h-screen">
-       <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-       <p>Loading Interview...</p>
+      <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
+      <p>Loading Interview...</p>
     </div>
   );
 
@@ -102,11 +163,11 @@ export default function InterviewSessionPage() {
           <p className="text-muted-foreground mb-8">
             Great job answering the interview questions! Would you like to take the coding round?
           </p>
-          
+
           <div className="flex flex-col gap-4">
-            <Button 
-              onClick={goToCoding} 
-              size="lg" 
+            <Button
+              onClick={goToCoding}
+              size="lg"
               className="w-full py-6 text-lg bg-green-600 hover:bg-green-700 cursor-pointer"
               disabled={isNavigating}
             >
@@ -116,10 +177,10 @@ export default function InterviewSessionPage() {
                 <><CheckCircle className="mr-2 h-5 w-5" /> Yes, Take Coding Round</>
               )}
             </Button>
-            
-            <Button 
-              onClick={skipCoding} 
-              variant="outline" 
+
+            <Button
+              onClick={skipCoding}
+              variant="outline"
               size="lg"
               className="w-full py-6 text-lg cursor-pointer"
               disabled={isNavigating}
@@ -131,93 +192,133 @@ export default function InterviewSessionPage() {
               )}
             </Button>
           </div>
-          
-          <p className="text-xs text-muted-foreground mt-6">
-            The coding round includes a programming challenge based on your resume skills.
-          </p>
         </div>
       </div>
     );
   }
 
+  // If we have a token, we wrap the UI in LiveKitRoom
+  // This maintains the connection even though we use Browser TTS for now
+  if (!token) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <span className="ml-2">Connecting to Room...</span>
+      </div>
+    );
+  }
+
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950/50">
-      <div className="max-w-4xl w-full flex flex-col items-center gap-10">
-        
-        {/* Header / Progress */}
-        <div className="w-full flex justify-between items-center px-4">
-           <Button variant="ghost" size="sm" onClick={() => router.push('/')} className="cursor-pointer">
-             <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
-           </Button>
-           <h2 className="text-xl font-semibold text-muted-foreground hidden sm:block">
-             Question {currentIndex + 1} / {questions.length}
-           </h2>
-           {!isStarted && (
-             <Button 
-               onClick={startInterview} 
-               size="lg" 
-               className="shadow-[0_0_20px_rgba(59,130,246,0.6)] border border-primary-200 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] hover:animate-none hover:scale-105 transition-all cursor-pointer font-bold tracking-wide"
-             >
-               Start Interview
-             </Button>
-           )}
-        </div>
+    <LiveKitRoom
+      video={false}
+      audio={true}
+      token={token}
+      serverUrl={url}
+      data-lk-theme="default"
+      style={{ height: '100vh' }}
+    >
+      <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-950/50">
+        <div className="max-w-4xl w-full flex flex-col items-center gap-10">
 
-        {/* Progress Bar */}
-        <div className="w-full max-w-3xl h-2 bg-muted rounded-full overflow-hidden">
-          <div 
-            className="h-full bg-primary transition-all duration-300"
-            style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-          />
-        </div>
+          {/* Header / Progress */}
+          <div className="w-full flex justify-between items-center px-4">
+            <Button variant="ghost" size="sm" onClick={() => router.push('/')} className="cursor-pointer">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
+            </Button>
+            <div className="flex items-center gap-4">
+              {/* LiveKit Status Indicator */}
+              <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10 text-green-500 text-xs border border-green-500/20">
+                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                Live Connected
+              </div>
+              <h2 className="text-xl font-semibold text-muted-foreground hidden sm:block">
+                Question {currentIndex + 1} / {questions.length}
+              </h2>
+            </div>
 
-        {/* Central Agent Interface */}
-        <div className="my-6 w-full max-w-3xl">
-          <div className="bg-card border rounded-lg p-6 shadow-sm mb-6">
-             <div className="flex items-start gap-4">
-                <div className="min-w-[50px] h-[50px] rounded-full bg-primary/10 flex items-center justify-center">
-                   <Bot className="h-8 w-8 text-primary" />
+            {!isStarted && (
+              <Button
+                onClick={startInterview}
+                size="lg"
+                className="shadow-[0_0_20px_rgba(59,130,246,0.6)] border border-primary-200 animate-[pulse_2s_cubic-bezier(0.4,0,0.6,1)_infinite] hover:animate-none hover:scale-105 transition-all cursor-pointer font-bold tracking-wide"
+              >
+                Start Interview
+              </Button>
+            )}
+
+            {/* Voice Selector */}
+            <select
+              className="bg-muted border rounded-md px-3 py-1 text-sm "
+              value={selectedVoice}
+              onChange={(e) => setSelectedVoice(e.target.value)}
+            >
+              <option value="en-US-ChristopherNeural">Christopher (Male)</option>
+              <option value="en-US-GuyNeural">Guy (Male)</option>
+              <option value="en-US-AriaNeural">Aria (Female)</option>
+              <option value="en-US-JennyNeural">Jenny (Female)</option>
+              <option value="en-GB-SoniaNeural">Sonia (UK Female)</option>
+              <option value="en-GB-RyanNeural">Ryan (UK Male)</option>
+            </select>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="w-full max-w-3xl h-2 bg-muted rounded-full overflow-hidden">
+            <div
+              className="h-full bg-primary transition-all duration-300"
+              style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
+            />
+          </div>
+
+          {/* Central Agent Interface */}
+          <div className="my-6 w-full max-w-3xl">
+            <div className="bg-card border rounded-lg p-6 shadow-sm mb-6 relative overflow-hidden transition-all duration-500">
+              <div className="flex items-start gap-4">
+                <div className={`min-w-[50px] h-[50px] rounded-full flex items-center justify-center transition-colors duration-300 ${isStarted ? 'bg-primary text-primary-foreground shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'bg-primary/10 text-primary'}`}>
+                  {isStarted ? <Mic className="h-6 w-6 animate-pulse" /> : <Bot className="h-8 w-8" />}
                 </div>
                 <div>
-                   <h3 className="font-semibold mb-1">AI Interviewer</h3>
-                   <p className="text-lg leading-relaxed">{questions[currentIndex]?.question}</p>
+                  <h3 className="font-semibold mb-1">AI Interviewer</h3>
+                  <p className="text-lg leading-relaxed">{questions[currentIndex]?.question}</p>
                 </div>
-             </div>
+              </div>
+              {/* LiveAudio Visualizer Placeholder (Since we are using Local TTS, we don't visualize the track yet, but the connection is active) */}
+              <RoomAudioRenderer />
+            </div>
+
+            <div className="bg-muted/30 border rounded-lg p-6">
+              <label className="block text-sm font-medium mb-2">Your Answer</label>
+              <textarea
+                className="w-full min-h-[120px] p-3 rounded-md border bg-background cursor-text"
+                placeholder="Type your answer here..."
+                value={userAnswer}
+                onChange={(e) => setUserAnswer(e.target.value)}
+              />
+            </div>
           </div>
 
-          <div className="bg-muted/30 border rounded-lg p-6">
-             <label className="block text-sm font-medium mb-2">Your Answer</label>
-             <textarea 
-               className="w-full min-h-[120px] p-3 rounded-md border bg-background cursor-text"
-               placeholder="Type your answer here..."
-               value={userAnswer}
-               onChange={(e) => setUserAnswer(e.target.value)}
-             />
+          {/* User Controls */}
+          <div className="w-full max-w-2xl flex flex-col items-center gap-4">
+            {isStarted && (
+              <div className="flex gap-4">
+                <Button
+                  onClick={submitAnswer}
+                  className="btn-primary min-w-[200px] py-6 text-lg cursor-pointer"
+                  disabled={!userAnswer.trim() || isSaving}
+                >
+                  {isSaving ? (
+                    <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
+                  ) : (currentIndex === questions.length - 1 ? (
+                    <><Flag className="mr-2 h-4 w-4" /> Finish Q&A</>
+                  ) : (
+                    <>Next Question <ArrowRight className="ml-2 h-4 w-4" /></>
+                  ))}
+                </Button>
+              </div>
+            )}
           </div>
-        </div>
 
-        {/* User Controls */}
-        <div className="w-full max-w-2xl flex flex-col items-center gap-4">
-           {isStarted && (
-             <div className="flex gap-4">
-               <Button 
-                 onClick={submitAnswer} 
-                 className="btn-primary min-w-[200px] py-6 text-lg cursor-pointer"
-                 disabled={!userAnswer.trim() || isSaving} 
-               >
-                 {isSaving ? (
-                   <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Saving...</>
-                 ) : (currentIndex === questions.length - 1 ? (
-                   <><Flag className="mr-2 h-4 w-4" /> Finish Q&A</>
-                 ) : (
-                   <>Next Question <ArrowRight className="ml-2 h-4 w-4" /></>
-                 ))}
-               </Button>
-             </div>
-           )}
         </div>
-
       </div>
-    </div>
+    </LiveKitRoom>
   );
 }
