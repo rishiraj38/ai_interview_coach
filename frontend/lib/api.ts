@@ -43,12 +43,12 @@ export async function generateCodingChallenge(resumeURL: string, resumeText: str
       headers: getAuthHeaders(),
       body: JSON.stringify({ resumeURL, resumeText }),
     });
-    
+
     if (!response.ok) {
       const errorData = await response.json();
       throw new Error(errorData.error || 'Failed to generate coding challenge');
     }
-    
+
     const data = await response.json();
     return data.challenge;
   } catch (error) {
@@ -67,8 +67,8 @@ export async function evaluateCode(code: string, language: string, problem: any)
     const data = await response.json();
     return data.result;
   } catch (error) {
-     console.error('API Error:', error);
-     throw error;
+    console.error('API Error:', error);
+    throw error;
   }
 }
 
@@ -82,8 +82,32 @@ export async function generateFeedback(interviewData: any, codingData: any) {
     const data = await response.json();
     return data.feedback;
   } catch (error) {
-     console.error('API Error:', error);
-     throw error;
+    console.error('API Error:', error);
+    throw error;
+  }
+}
+
+// ============================================
+// TTS ROUTE (EDGE)
+// ============================================
+
+export async function generateSpeech(text: string, voice?: string) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/speak`, {
+      method: 'POST',
+      // No auth needed for this simple proxy, or add getAuthHeaders() if you want to protect it
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, voice }),
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to generate speech');
+    }
+
+    return await response.blob();
+  } catch (error) {
+    console.error('API Error:', error);
+    throw error;
   }
 }
 
@@ -98,12 +122,12 @@ export async function createInterview(resumeURL: string, jobDescription: string 
     headers: getAuthHeaders(),
     body: JSON.stringify({ resumeURL, jobDescription, resumeText }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to create interview');
   }
-  
+
   return response.json();
 }
 
@@ -113,12 +137,12 @@ export async function saveInterviewAnswers(interviewId: number, answers: any[]) 
     headers: getAuthHeaders(),
     body: JSON.stringify({ answers }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to save answers');
   }
-  
+
   return response.json();
 }
 
@@ -128,12 +152,12 @@ export async function saveInterviewCoding(interviewId: number, challenge: any, c
     headers: getAuthHeaders(),
     body: JSON.stringify({ challenge, code, result, skipped }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to save coding result');
   }
-  
+
   return response.json();
 }
 
@@ -143,12 +167,12 @@ export async function saveInterviewFeedback(interviewId: number, feedback: any) 
     headers: getAuthHeaders(),
     body: JSON.stringify({ feedback }),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to save feedback');
   }
-  
+
   return response.json();
 }
 
@@ -156,12 +180,12 @@ export async function getInterviewHistory() {
   const response = await fetch(`${API_BASE_URL}/interviews`, {
     headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch interviews');
   }
-  
+
   const data = await response.json();
   return data.interviews;
 }
@@ -170,12 +194,12 @@ export async function getInterviewDetail(interviewId: number) {
   const response = await fetch(`${API_BASE_URL}/interviews/${interviewId}`, {
     headers: getAuthHeaders(),
   });
-  
+
   if (!response.ok) {
     const error = await response.json();
     throw new Error(error.error || 'Failed to fetch interview');
   }
-  
+
   const data = await response.json();
   return data.interview;
 }

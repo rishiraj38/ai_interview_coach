@@ -70,7 +70,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen px-4 sm:px-6 lg:px-8 py-6 max-w-7xl mx-auto">
-      {/* Hero / Welcome Section */}
+      {/*  Hero / Welcome Section    */}
       <section className="relative mb-16">
         <div className="card-cta overflow-hidden relative">
             <div className="z-10 relative max-w-2xl">

@@ -5,9 +5,9 @@ const ImageKit = require("imagekit");
 const cors = require('cors');
 
 const imagekit = new ImageKit({
-    publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
-    privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
-    urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT
+  publicKey: process.env.IMAGEKIT_PUBLIC_KEY,
+  privateKey: process.env.IMAGEKIT_PRIVATE_KEY,
+  urlEndpoint: process.env.IMAGEKIT_URL_ENDPOINT
 });
 
 
@@ -15,13 +15,13 @@ const imagekit = new ImageKit({
 const { extractTextFromPdf } = require('./services/pdfService');
 const { generateQuestions, generateCodingChallenge, evaluateCode, generateFeedback } = require('./services/aiService');
 const { register, login, authMiddleware, getUserById } = require('./services/authService');
-const { 
-  createInterview, 
-  saveAnswers, 
-  saveCodingResult, 
-  saveFeedback, 
-  getUserInterviews, 
-  getInterviewById 
+const {
+  createInterview,
+  saveAnswers,
+  saveCodingResult,
+  saveFeedback,
+  getUserInterviews,
+  getInterviewById
 } = require('./services/interviewService');
 
 const app = express();
@@ -44,11 +44,11 @@ app.get('/health', (req, res) => {
 
 app.post('/auth/register', async (req, res) => {
   const { name, email, password } = req.body;
-  
+
   if (!name || !email || !password) {
     return res.status(400).json({ error: 'Name, email, and password are required' });
   }
-  
+
   try {
     const user = await register(name, email, password);
     res.status(201).json({ user, message: 'Account created successfully' });
@@ -60,11 +60,11 @@ app.post('/auth/register', async (req, res) => {
 
 app.post('/auth/login', async (req, res) => {
   const { email, password } = req.body;
-  
+
   if (!email || !password) {
     return res.status(400).json({ error: 'Email and password are required' });
   }
-  
+
   try {
     const result = await login(email, password);
     res.json(result);
@@ -88,34 +88,34 @@ app.get('/auth/me', authMiddleware, async (req, res) => {
 // Create interview and generate questions
 app.post('/interviews', authMiddleware, async (req, res) => {
   const { resumeURL, jobDescription, resumeText } = req.body;
-  
+
   // Require either resumeURL or resumeText/jobDescription
   if (!resumeURL && !resumeText && !jobDescription) {
     return res.status(400).json({ error: 'resumeURL, resumeText, or jobDescription is required' });
   }
-  
+
   try {
     console.log(`Creating interview for user ${req.userId}`);
-    
+
     // Extract text from PDF OR use provided text
     let text = resumeText || "";
     if (resumeURL && !text && !resumeURL.includes('manual-entry.local')) {
-        try {
-            text = await extractTextFromPdf(resumeURL);
-        } catch (err) {
-            console.warn("Failed to extract PDF, using job description fallback", err);
-            text = jobDescription || "General Interview";
-        }
+      try {
+        text = await extractTextFromPdf(resumeURL);
+      } catch (err) {
+        console.warn("Failed to extract PDF, using job description fallback", err);
+        text = jobDescription || "General Interview";
+      }
     } else if (!text) {
-        // Fallback if no text provided and URL is placeholder
-        text = jobDescription;
+      // Fallback if no text provided and URL is placeholder
+      text = jobDescription;
     }
 
     const questions = await generateQuestions(text, jobDescription);
-    
+
     // Save to database
     const interview = await createInterview(req.userId, resumeURL, jobDescription, questions);
-    
+
     res.status(201).json({ interview, questions });
   } catch (error) {
     console.error('Error creating interview:', error);
@@ -127,7 +127,7 @@ app.post('/interviews', authMiddleware, async (req, res) => {
 app.put('/interviews/:id/answers', authMiddleware, async (req, res) => {
   const interviewId = parseInt(req.params.id);
   const { answers } = req.body;
-  
+
   try {
     await saveAnswers(interviewId, answers);
     res.json({ success: true });
@@ -141,7 +141,7 @@ app.put('/interviews/:id/answers', authMiddleware, async (req, res) => {
 app.put('/interviews/:id/coding', authMiddleware, async (req, res) => {
   const interviewId = parseInt(req.params.id);
   const { challenge, code, result, skipped } = req.body;
-  
+
   try {
     await saveCodingResult(interviewId, challenge, code, result, skipped);
     res.json({ success: true });
@@ -155,7 +155,7 @@ app.put('/interviews/:id/coding', authMiddleware, async (req, res) => {
 app.put('/interviews/:id/feedback', authMiddleware, async (req, res) => {
   const interviewId = parseInt(req.params.id);
   const { feedback } = req.body;
-  
+
   try {
     await saveFeedback(interviewId, feedback);
     res.json({ success: true });
@@ -179,7 +179,7 @@ app.get('/interviews', authMiddleware, async (req, res) => {
 // Get single interview details
 app.get('/interviews/:id', authMiddleware, async (req, res) => {
   const interviewId = parseInt(req.params.id);
-  
+
   try {
     const interview = await getInterviewById(interviewId, req.userId);
     res.json({ interview });
@@ -201,17 +201,17 @@ app.post('/generate-questions', async (req, res) => {
   try {
     let text = resumeText || "";
     if (resumeURL && !text) {
-        console.log(`Processing resume from: ${resumeURL}`);
-        text = await extractTextFromPdf(resumeURL);
-        console.log('PDF text extracted successfully.');
+      console.log(`Processing resume from: ${resumeURL}`);
+      text = await extractTextFromPdf(resumeURL);
+      console.log('PDF text extracted successfully.');
     }
-    
+
     // If we still have no text (e.g. empty resumeText), ensure we have something
     if (!text && jobDescription) text = "No resume provided. Focus on Job Description.";
 
     const questions = await generateQuestions(text, jobDescription);
     console.log('Questions generated successfully.');
-    
+
     res.json({ questions });
   } catch (error) {
     console.error('Error generating interview questions:', error);
@@ -221,15 +221,15 @@ app.post('/generate-questions', async (req, res) => {
 
 app.post('/generate-coding-question', async (req, res) => {
   const { resumeURL, resumeText } = req.body;
-  
+
   if (!resumeURL && !resumeText) return res.status(400).json({ error: 'resumeURL or resumeText is required' });
 
   try {
     let text = resumeText || "";
     if (resumeURL && !text) {
-        text = await extractTextFromPdf(resumeURL);
+      text = await extractTextFromPdf(resumeURL);
     }
-    
+
     const challenge = await generateCodingChallenge(text);
     res.json({ challenge });
   } catch (error) {
@@ -240,7 +240,7 @@ app.post('/generate-coding-question', async (req, res) => {
 
 app.post('/evaluate-code', async (req, res) => {
   const { code, language, problem } = req.body;
-  
+
   if (!code || !problem) return res.status(400).json({ error: 'Code and problem are required' });
 
   try {
@@ -254,7 +254,7 @@ app.post('/evaluate-code', async (req, res) => {
 
 app.post('/generate-feedback', async (req, res) => {
   const { interviewData, codingData } = req.body;
-  
+
   try {
     const feedback = await generateFeedback(interviewData, codingData);
     res.json({ feedback });
@@ -264,19 +264,57 @@ app.post('/generate-feedback', async (req, res) => {
   }
 });
 
+// LIVEKIT ROUTE
+app.get('/livekit/token', async (req, res) => {
+  const room = req.query.room || 'quick-interview';
+  const username = req.query.username || 'guest';
+
+  try {
+    const { createToken } = require('./services/livekitService');
+    const token = await createToken(username, room);
+    res.json({ token });
+  } catch (error) {
+    console.error('Error generating token:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// TTS ROUTE (EDGE)
+app.post('/speak', async (req, res) => {
+  const { text, voice } = req.body;
+
+  if (!text) return res.status(400).json({ error: "Text is required" });
+
+  try {
+    const { generateSpeech } = require('./services/edgeTtsService');
+    // Default to ChristopherNeural (Conversational) if no voice provided
+    const audioBuffer = await generateSpeech(text, { voiceName: voice || 'en-US-ChristopherNeural' });
+
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.length
+    });
+
+    res.send(audioBuffer);
+  } catch (error) {
+    console.error('TTS Error:', error);
+    res.status(500).json({ error: "Failed to synthesize speech" });
+  }
+});
+
 // IMAGEKIT AUTH
 
 app.get('/imagekit-auth', function (req, res) {
-    try {
-        var result = imagekit.getAuthenticationParameters();
-        res.send(result);
-    } catch (error) {
-        console.error("ImageKit Auth Error:", error);
-        res.status(500).send("Auth Failed");
-    }
+  try {
+    var result = imagekit.getAuthenticationParameters();
+    res.send(result);
+  } catch (error) {
+    console.error("ImageKit Auth Error:", error);
+    res.status(500).send("Auth Failed");
+  }
 });
 
 const PORT = process.env.PORT || 5001;
 app.listen(PORT, () => {
-    console.log(`Server Running on port ${PORT}`);
+  console.log(`Server Running on port ${PORT}`);
 });
