@@ -29,13 +29,35 @@ async function createInterview(userId, resumeURL, jobDescription, questions = []
 
 // Add a single question to an existing interview (for dynamic flow)
 async function addQuestionToInterview(interviewId, questionText, expectedAnswer, order) {
-  const question = await prisma.question.create({
-    data: {
-      interviewId,
-      questionText,
-      expectedAnswer: expectedAnswer || '',
-      order
-    }
+  // Use a transaction to safely determine the next order and create the question
+  // This prevents race conditions where multiple requests might try to create questions with the same order
+  const question = await prisma.$transaction(async (tx) => {
+    // If order is provided, use it (but this is risky if caller doesn't know current state)
+    // Better practice: calculate valid next order inside transaction if 'order' isn't strictly enforced by caller
+    
+    let nextOrder = order;
+    
+    // If order is not provided or we want to be safe, auto-increment based on DB state
+    const lastQuestion = await tx.question.aggregate({
+      where: { interviewId },
+      _max: { order: true }
+    });
+    
+    const maxOrder = lastQuestion._max.order || 0;
+    
+    // If caller didn't provide order, or to be safe we overwrite it:
+    // Ideally we trust the caller if they are sure, but for safety in this specific refactor request:
+    // "compute nextOrder = (maxOrder || 0) + 1"
+    nextOrder = maxOrder + 1;
+
+    return await tx.question.create({
+      data: {
+        interviewId,
+        questionText,
+        expectedAnswer: expectedAnswer || '',
+        order: nextOrder
+      }
+    });
   });
   
   return question;

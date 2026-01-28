@@ -18,6 +18,7 @@ const TOTAL_QUESTIONS = 10;
 export default function InterviewSessionPage() {
   const router = useRouter();
   const [currentQuestion, setCurrentQuestion] = useState<string>("");
+  const [currentExpectedAnswer, setCurrentExpectedAnswer] = useState<string>("");
   const [currentQuestionNumber, setCurrentQuestionNumber] = useState(1);
   const [isStarted, setIsStarted] = useState(false);
   const [userAnswer, setUserAnswer] = useState("");
@@ -27,6 +28,7 @@ export default function InterviewSessionPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [isGeneratingQuestion, setIsGeneratingQuestion] = useState(false);
   const [error, setError] = useState("");
+  const [End,setEnd] = useState(false)
   
   // Context for question generation
   const [resumeText, setResumeText] = useState("");
@@ -71,6 +73,7 @@ export default function InterviewSessionPage() {
       );
       
       setCurrentQuestion(questionData.question);
+      setCurrentExpectedAnswer(questionData.expectedAnswer || "");
     } catch (err: any) {
       console.error('Error generating question:', err);
       setError(err.message || 'Failed to generate question. Please try again.');
@@ -92,7 +95,8 @@ export default function InterviewSessionPage() {
     // Add current Q&A to history
     const newConversation: ConversationItem = {
       question: currentQuestion,
-      answer: userAnswer
+      answer: userAnswer,
+      expectedAnswer: currentExpectedAnswer
     };
     
     const updatedHistory = [...conversationHistory, newConversation];
@@ -126,6 +130,7 @@ export default function InterviewSessionPage() {
       );
       
       setCurrentQuestion(questionData.question);
+      setCurrentExpectedAnswer(questionData.expectedAnswer || "");
     } catch (err: any) {
       console.error('Error generating next question:', err);
       setError(err.message || 'Failed to generate next question.');
@@ -133,6 +138,16 @@ export default function InterviewSessionPage() {
       setIsGeneratingQuestion(false);
     }
   };
+
+  const endInterviewEarly = async () => {
+     if (isSaving || isGeneratingQuestion) return;
+     if (!confirm("Are you sure you want to end the interview early? Your current progress will be saved.")) return;
+     
+     // Save what we have so far
+     await finishQA(conversationHistory);
+  };
+
+
 
   const finishQA = async (finalHistory: ConversationItem[]) => {
     setIsSaving(true);

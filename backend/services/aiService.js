@@ -12,6 +12,9 @@ async function callOpenRouter(prompt, operationName = 'AI Call') {
   const startTime = Date.now();
   console.log(`[${operationName}] Starting AI request...`);
   
+  // Create truncated versions of large inputs context for logging if needed
+  // but for now we just log start.
+  
   const response = await fetch(OPENROUTER_API_URL, {
     method: 'POST',
     headers: {
@@ -40,6 +43,25 @@ async function callOpenRouter(prompt, operationName = 'AI Call') {
   console.log(`[${operationName}] ✓ Completed in ${duration}s`);
   
   return data.choices[0].message.content;
+}
+
+/**
+ * Truncate text to a maximum length while preserving complete words if possible.
+ */
+function truncateText(text, maxLength = 2000) {
+  if (!text || text.length <= maxLength) return text;
+  return text.substring(0, maxLength) + "...(truncated)";
+}
+
+/**
+ * Summarize conversation history to keep prompt size manageable.
+ * effectively implements a sliding window of the most recent turns.
+ */
+function summarizeHistory(history, maxTurns = 5) {
+  if (!history || history.length <= maxTurns) return history;
+  
+  // Take only the last 'maxTurns' items
+  return history.slice(-maxTurns);
 }
 
 /**
@@ -113,10 +135,19 @@ async function generateQuestions(resumeText, jobDescription = "") {
 async function generateNextQuestion(resumeText, jobDescription = "", conversationHistory = [], questionNumber = 1, totalQuestions = 10) {
   try {
     // Build conversation context
+    // Build conversation context - Optimized
+    const truncatedResume = truncateText(resumeText, 2500); // 2500 chars limit for resume
+    const recentHistory = summarizeHistory(conversationHistory, 6); // Keep last 6 exchanges
+    
     let conversationContext = "";
-    if (conversationHistory.length > 0) {
-      conversationContext = conversationHistory.map((qa, i) => 
-        `Q${i + 1}: ${qa.question}\nCandidate's Answer: ${qa.answer}`
+    if (recentHistory.length > 0) {
+      // If we truncated history, add a note
+      if (conversationHistory.length > recentHistory.length) {
+         conversationContext = `[...Previous ${conversationHistory.length - recentHistory.length} questions summarized...]\n\n`;
+      }
+      
+      conversationContext += recentHistory.map((qa, i) => 
+        `Q${conversationHistory.length - recentHistory.length + i + 1}: ${qa.question}\nCandidate's Answer: ${qa.answer}`
       ).join("\n\n");
     }
 
@@ -124,13 +155,13 @@ async function generateNextQuestion(resumeText, jobDescription = "", conversatio
     
 You are asking question ${questionNumber} of ${totalQuestions}.
 
-CANDIDATE'S RESUME:
-${resumeText}
+CANDIDATE'S RESUME (Excerpt):
+${truncatedResume}
 
 JOB DESCRIPTION:
 ${jobDescription || "Not provided (Focus on general software engineering skills based on resume)"}
 
-${conversationHistory.length > 0 ? `INTERVIEW SO FAR:\n${conversationContext}\n` : ""}
+${recentHistory.length > 0 ? `INTERVIEW SO FAR:\n${conversationContext}\n` : ""}
 
 INSTRUCTIONS:
 ${questionNumber === 1 ? 
